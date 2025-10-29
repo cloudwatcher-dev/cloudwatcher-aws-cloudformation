@@ -1,0 +1,38 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: CloudWatch Metric Filter and Alarm for IAM CreateUser events.
+Parameters:
+  LogGroupName:
+    Type: String
+  ForwardingLambdaArn:
+    Type: String
+    Description: The ARN of the Forwarding Lambda function
+
+Resources:
+  CreateUserEventFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: !Ref LogGroupName
+      FilterPattern: '{ ($.eventSource = "iam.amazonaws.com") && ($.eventName = "CreateUser") }'
+      MetricTransformations:
+        - MetricValue: 1
+          MetricNamespace: CLOUDWATCHER
+          MetricName: CreateUserEvent
+
+  CreateUserAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: "iam:CreateUserAlarm:CW.1.5"
+      MetricName: "CreateUserEvent"
+      Namespace: "CLOUDWATCHER"
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      AlarmActions:
+        - !Ref ForwardingLambdaArn
+      OKActions:
+        - !Ref ForwardingLambdaArn
+      InsufficientDataActions:
+        - !Ref ForwardingLambdaArn
+      AlarmDescription: "Alarm when IAM CreateUser events occur."

@@ -1,0 +1,164 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Lambda function for forwarding events to SQS"
+
+Parameters:
+  ExternalSQSArn:
+    Type: String
+    Description: "The ARN of the external SQS Queue in Account B"
+  LogGroupName:
+    Type: String
+    Description: "Name of the CloudWatch Log Group"
+  WorkspaceId:
+    Type: String
+    Description: "Cloudwatcher Workspace ID"
+
+Resources:
+  LambdaInvokePermissionForCloudWatch:
+    Type: "AWS::Lambda::Permission"
+    Properties:
+      Action: "lambda:InvokeFunction"
+      FunctionName: !GetAtt ForwardingLambda.Arn
+      Principal: "lambda.alarms.cloudwatch.amazonaws.com"
+      SourceArn: !Sub "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:*"
+
+  ForwardingLambdaLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/Cloudwatcher-ForwardingLambda"
+      RetentionInDays: 14
+
+  ForwardingLambda:
+    Type: "AWS::Lambda::Function"
+    Properties:
+      Handler: "index.handler"
+      FunctionName: !Sub "Cloudwatcher-ForwardingLambda"
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Runtime: nodejs20.x
+      Timeout: 60
+      Code:
+        ZipFile: |
+          const { SQSClient, SendMessageCommand } = require('@aws-sdk/client-sqs');
+          const { CloudWatchLogsClient, FilterLogEventsCommand } = require('@aws-sdk/client-cloudwatch-logs');
+
+          exports.handler = async (event) => {
+            const alarmState = event.alarmData.state.value;
+            const prevState = event.alarmData.previousState.value;
+            console.log('alarmState', alarmState, prevState);
+            const sqsClient = new SQSClient({region :process.env.EXTERNAL_SQS_REGION});
+            const cloudWatchLogsClient = new CloudWatchLogsClient({ region: process.env.AWS_REGION });
+            const externalQueueUrl = process.env.EXTERNAL_SQS_URL;
+            const reasonData = JSON.parse(event.alarmData.state.reasonData || '{}');
+            const previousReasonData = JSON.parse(event.alarmData.previousState.reasonData || '{}');
+            const logGroupName = process.env.LOG_GROUP_NAME;
+
+            const alarmName = event.alarmData.alarmName;
+            console.log('alarmName', event.alarmData);  
+            const [prefix, rawEventName] = alarmName.split(':'); 
+            if(!rawEventName){
+              // TODO prefix with CS:CIS1.2:iam:AccessDeniedAlarm
+              return;
+            }
+            
+            const eventName = rawEventName.replace(/Alarm$/, ''); 
+
+            const eventSourceMapping = {
+              iam: "iam.amazonaws.com",
+              sts: "sts.amazonaws.com",
+              sso: "sso.amazonaws.com"
+            };
+
+            let startTime = new Date(reasonData.startDate).getTime();
+            const endTime = new Date(event.alarmData.state.timestamp).getTime();
+            
+            if (alarmState !== "ALARM" && prevState === "ALARM") {
+              startTime = new Date(previousReasonData.startDate || previousReasonData.queryDate).getTime();
+              console.log('End of alarm, checking logs again');
+            } 
+            
+            let filterFieldKey = "eventName";
+            let filterFieldValue = eventName;
+            
+            if(eventName.includes('_')){
+              [filterFieldKey, filterFieldValue] = eventName.split('_');
+            }
+
+            const filterPattern = `{ ($.eventSource = "${eventSourceMapping[prefix]}") && ($.${filterFieldKey} = "${filterFieldValue}") }`;
+            const logParams = {logGroupName, startTime, endTime, filterPattern, limit: 500}; 
+            console.log('logParams', logParams);
+
+            const logCommand = new FilterLogEventsCommand(logParams);
+            const logData = await cloudWatchLogsClient.send(logCommand);
+            let cloudwatchLogEntries = logData.events.map(logEvent => JSON.parse(logEvent.message));
+            console.log('cloudwatchLogEntries', cloudwatchLogEntries);
+
+
+            if(cloudwatchLogEntries.length === 0){
+              console.log('alarmName', alarmName, cloudwatchLogEntries.length);  
+              return;
+            }
+
+            const params = {
+                QueueUrl: externalQueueUrl,
+                MessageBody: JSON.stringify({
+                  ...event, 
+                  cloudwatchLogEntries,
+                  workspaceId: process.env.WORKSPACE_ID,
+                  type: `CLOUDWATCHER_${alarmState}`,
+                }),
+            };
+            const command = new SendMessageCommand(params);
+            try{
+              await sqsClient.send(command);
+            }catch(e){
+              console.log('Error sending message to SQS', e, cloudwatchLogEntries.length, params);
+            }
+          };
+      Environment:
+        Variables:
+          LOG_GROUP_NAME: !Ref LogGroupName
+          EXTERNAL_SQS_REGION: !Select [3, !Split [":", !Ref ExternalSQSArn]]
+          WORKSPACE_ID: !Ref WorkspaceId
+          EXTERNAL_SQS_URL: !Join
+            - ""
+            - - "https://sqs."
+              - !Select [3, !Split [":", !Ref ExternalSQSArn]]
+              - ".amazonaws.com/"
+              - !Select [4, !Split [":", !Ref ExternalSQSArn]]
+              - "/"
+              - !Select [5, !Split [":", !Ref ExternalSQSArn]]
+
+  # IAM Role for the Lambda function to send messages to the external SQS Queue
+  LambdaExecutionRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: "LambdaSQSForwardingPolicy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "sqs:SendMessage"
+                  - "logs:FilterLogEvents"
+                Resource:
+                  - !Ref ExternalSQSArn
+                  - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${LogGroupName}"
+                  - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${LogGroupName}:log-stream:*"
+              - Effect: Allow
+                Action:
+                  - "logs:CreateLogGroup"
+                  - "logs:CreateLogStream"
+                  - "logs:PutLogEvents"
+                Resource: !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${AWS::StackName}-ForwardingLambda:*"
+
+Outputs:
+  ForwardingLambdaArn:
+    Description: "ARN of the Forwarding Lambda function"
+    Value: !GetAtt ForwardingLambda.Arn

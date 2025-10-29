@@ -1,0 +1,38 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: CloudWatch Metric Filter and Alarm for IAM DeleteUser events.
+Parameters:
+  LogGroupName:
+    Type: String
+  ForwardingLambdaArn:
+    Type: String
+    Description: The ARN of the Forwarding Lambda function
+
+Resources:
+  DeleteUserEventFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: !Ref LogGroupName
+      FilterPattern: '{ ($.eventSource = "iam.amazonaws.com") && ($.eventName = "DeleteUser") }'
+      MetricTransformations:
+        - MetricValue: 1
+          MetricNamespace: CLOUDWATCHER
+          MetricName: DeleteUserEvent
+
+  DeleteUserAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: "iam:DeleteUserAlarm:CW.1.6"
+      MetricName: "DeleteUserEvent"
+      Namespace: "CLOUDWATCHER"
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      AlarmActions:
+        - !Ref ForwardingLambdaArn
+      OKActions:
+        - !Ref ForwardingLambdaArn
+      InsufficientDataActions:
+        - !Ref ForwardingLambdaArn
+      AlarmDescription: "Alarm when IAM DeleteUser events occur."

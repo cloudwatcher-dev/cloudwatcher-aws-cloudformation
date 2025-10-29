@@ -1,0 +1,65 @@
+name: Deploy Stage
+
+on:
+  push:
+    branches:
+      - main
+      
+jobs:
+  deploy-stage:
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+
+    if: "!contains(github.event.head_commit.message, 'ci skip')"
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@v1
+        with:
+          node-version: '20.x'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@customjs'
+
+      # Setup AWS
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_ID__STAGE }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY__STAGE }}
+          aws-region: eu-central-1
+      - name: Install AWS CLI v2
+        run:  |
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip
+          unzip -q /tmp/awscliv2.zip -d /tmp
+          rm /tmp/awscliv2.zip
+          sudo /tmp/aws/install --update
+          rm -rf /tmp/aws/
+
+      # Run Cloudformation
+      - name: Run cfn
+        run: |
+          aws cloudformation deploy \
+          --stack-name cloudwatcher-cloudformation-stage \
+          --template-file cloudformation.yml \
+          --parameter-overrides \
+              BucketName=cloudwatcher-cloudformation-stage \
+              DomainName=cfn-stage.cloudwatcher.io \
+              RootDomainName=stage.cloudwatcher.io \
+              ACMCertificateArn=arn:aws:acm:us-east-1:509399595438:certificate/5beab081-56c6-4cc1-b570-38583601bc74 \
+          --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
+          --no-fail-on-empty-changeset
+
+      # Create No Index Robots.txt
+      - name: Create No Index Robots
+        run: |
+          cat > ./src/robots.txt << EOF
+          User-agent: *
+          Disallow: /
+          EOF
+
+      # Upload To S3
+      - name: Deploy to S3
+        run: aws s3 cp --recursive ./src/ s3://cloudwatcher-cloudformation-stage/
+          

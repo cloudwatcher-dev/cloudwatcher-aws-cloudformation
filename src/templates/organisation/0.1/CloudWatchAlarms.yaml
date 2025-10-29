@@ -1,0 +1,64 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CloudWatch Alarms and Metric Filters referencing individual files
+
+Parameters:
+  LogGroupName:
+    Type: String
+    Description: Name of the CloudWatch Log Group
+  ForwardingLambdaArn:
+    Type: String
+    Description: The ARN of the Forwarding Lambda function
+  Environment:
+    Type: String
+    Description: The deployment environment (e.g., stage, prod)
+    Default: stage
+
+Resources:
+  AlarmAccessDenied:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "https://cloudwatcher-cfn-${Environment}.s3.eu-central-1.amazonaws.com/templates/organisation/0.1/alarms/CW/AccessDenied.yaml"
+      Parameters:
+        LogGroupName: !Ref LogGroupName
+        ForwardingLambdaArn: !Ref ForwardingLambdaArn
+
+  AlarmGetCallerIdentity:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "https://cloudwatcher-cfn-${Environment}.s3.eu-central-1.amazonaws.com/templates/organisation/0.1/alarms/CW/GetCallerIdentity.yaml"
+      Parameters:
+        LogGroupName: !Ref LogGroupName
+        ForwardingLambdaArn: !Ref ForwardingLambdaArn
+
+  AttachUserPolicy:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "https://cloudwatcher-cfn-${Environment}.s3.eu-central-1.amazonaws.com/templates/organisation/0.1/alarms/CW/AttachUserPolicy.yaml"
+      Parameters:
+        LogGroupName: !Ref LogGroupName
+        ForwardingLambdaArn: !Ref ForwardingLambdaArn
+
+  AlarmAuthenticate:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "https://cloudwatcher-cfn-${Environment}.s3.eu-central-1.amazonaws.com/templates/organisation/0.1/alarms/CW/Authenticate.yaml"
+      Parameters:
+        LogGroupName: !Ref LogGroupName
+        ForwardingLambdaArn: !Ref ForwardingLambdaArn
+
+  AlarmCreateUser:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "https://cloudwatcher-cfn-${Environment}.s3.eu-central-1.amazonaws.com/templates/organisation/0.1/alarms/CW/CreateUser.yaml"
+      Parameters:
+        LogGroupName: !Ref LogGroupName
+        ForwardingLambdaArn: !Ref ForwardingLambdaArn
+
+  AlarmDeleteUser:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "https://cloudwatcher-cfn-${Environment}.s3.eu-central-1.amazonaws.com/templates/organisation/0.1/alarms/CW/DeleteUser.yaml"
+      Parameters:
+        LogGroupName: !Ref LogGroupName
+        ForwardingLambdaArn: !Ref ForwardingLambdaArn
+    

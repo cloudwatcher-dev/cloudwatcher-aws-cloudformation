@@ -1,0 +1,40 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CloudWatch Metric Filter for AttachUserPolicy
+
+Parameters:
+  LogGroupName:
+    Type: String
+  ForwardingLambdaArn:
+    Type: String
+    Description: The ARN of the Forwarding Lambda function
+
+Resources:
+  AttachUserPolicyFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: !Ref LogGroupName
+      FilterPattern: '{ ($.eventSource = "iam.amazonaws.com") && ($.eventName = "AttachUserPolicy") }'
+      MetricTransformations:
+        - MetricValue: 1
+          MetricNamespace: CLOUDWATCHER
+          MetricName: AttachUserPolicyEvent
+
+  AttachUserPolicyAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: "iam:AttachUserPolicyAlarm:CW.1.1"
+      MetricName: "AttachUserPolicyEvent"
+      Namespace: "CLOUDWATCHER"
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      AlarmActions:
+        - !Ref ForwardingLambdaArn
+      OKActions:
+        - !Ref ForwardingLambdaArn
+      InsufficientDataActions:
+        - !Ref ForwardingLambdaArn
+      AlarmDescription: "Alarm when AttachUserPolicy events occur."
+

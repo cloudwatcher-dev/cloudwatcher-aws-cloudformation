@@ -1,0 +1,55 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Root template for nested stacks with Lambda code and environment variables
+
+Parameters:
+  LogGroupName:
+    Type: String
+    Description: Name of the CloudWatch Log Group
+    Default: aws-controltower/CloudTrailLogs
+  WorkspaceId:
+    Type: String
+    Description: Cloudwatcher Workspace ID
+  Environment:
+    Type: String
+    Description: The Cloudwatcher environment
+    Default: prod
+    NoEcho: true
+
+Conditions:
+  IsProd: !Equals [!Ref Environment, "prod"]
+
+Resources:
+  CloudWatchAlarmsStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "https://cloudwatcher-cfn-${Environment}.s3.eu-central-1.amazonaws.com/templates/organisation/0.1/CloudWatchAlarms.yaml"
+      Parameters:
+        LogGroupName: !Ref LogGroupName
+        ForwardingLambdaArn: !GetAtt ForwardingLambdaStack.Outputs.ForwardingLambdaArn
+        Environment: !Ref Environment
+
+  ForwardingLambdaStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "https://cloudwatcher-cfn-${Environment}.s3.eu-central-1.amazonaws.com/templates/organisation/0.1/ForwardingLambda.yaml"
+      Parameters:
+        LogGroupName: !Ref LogGroupName
+        ExternalSQSArn: !If [IsProd, 'arn:aws:sqs:eu-central-1:819640458745:external-aws-logs-queue', 'arn:aws:sqs:eu-central-1:509399595438:external-aws-logs-queue']
+        WorkspaceId: !Ref WorkspaceId
+
+  AccountDetailsLambdaStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "https://cloudwatcher-cfn-${Environment}.s3.eu-central-1.amazonaws.com/templates/organisation/0.1/AccountDetailsLambda.yaml"
+      Parameters:
+        ExternalSQSArn: !If [IsProd, 'arn:aws:sqs:eu-central-1:819640458745:external-aws-logs-queue', 'arn:aws:sqs:eu-central-1:509399595438:external-aws-logs-queue']
+        WorkspaceId: !Ref WorkspaceId
+
+Outputs:
+  ForwardingLambdaArn:
+    Description: ARN of the Forwarding Lambda function
+    Value: !GetAtt ForwardingLambdaStack.Outputs.ForwardingLambdaArn
+
+  AccountDetailsLambdaArn:
+    Description: ARN of the Account Details Lambda function
+    Value: !GetAtt AccountDetailsLambdaStack.Outputs.AccountDetailsLambdaArn

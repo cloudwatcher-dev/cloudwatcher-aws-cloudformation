@@ -1,0 +1,38 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: CloudWatch Metric Filter and Alarm for AccessDenied events. The Lambda function will query IAM AccessDenied events upon alarm.
+Parameters:
+  LogGroupName:
+    Type: String
+  ForwardingLambdaArn:
+    Type: String
+    Description: The ARN of the Forwarding Lambda function
+
+Resources:
+  AccessDeniedEventFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: !Ref LogGroupName
+      FilterPattern: '{ ($.eventSource = "iam.amazonaws.com") && ($.errorCode = "AccessDenied") }'
+      MetricTransformations:
+        - MetricValue: 1
+          MetricNamespace: CLOUDWATCHER
+          MetricName: AccessDeniedEvent
+
+  AccessDeniedAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: "iam:errorCode_AccessDeniedAlarm:CW.1.3"
+      MetricName: "AccessDeniedEvent"
+      Namespace: "CLOUDWATCHER"
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      AlarmActions:
+        - !Ref ForwardingLambdaArn
+      OKActions:
+        - !Ref ForwardingLambdaArn
+      InsufficientDataActions:
+        - !Ref ForwardingLambdaArn
+      AlarmDescription: "Alarm when AccessDenied metric triggers. Lambda will query IAM AccessDenied events."

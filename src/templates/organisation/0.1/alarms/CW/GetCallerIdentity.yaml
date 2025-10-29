@@ -1,0 +1,38 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: CloudWatch Metric Filter and Alarm for GetCallerIdentity
+
+Parameters:
+  LogGroupName:
+    Type: String
+  ForwardingLambdaArn:
+    Type: String
+
+Resources:
+  GetCallerIdentityEventFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: !Ref LogGroupName
+      FilterPattern: '{ ($.eventSource = "sts.amazonaws.com") && ($.eventName = "GetCallerIdentity") }'
+      MetricTransformations:
+        - MetricValue: 1
+          MetricNamespace: CLOUDWATCHER
+          MetricName: GetCallerIdentityEvent
+
+  GetCallerIdentityAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: "sts:GetCallerIdentityAlarm:CW.1.2"
+      MetricName: "GetCallerIdentityEvent"
+      Namespace: "CLOUDWATCHER"
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      AlarmActions:
+        - !Ref ForwardingLambdaArn
+      OKActions:
+        - !Ref ForwardingLambdaArn
+      InsufficientDataActions:
+        - !Ref ForwardingLambdaArn
+      AlarmDescription: "Alarm when GetCallerIdentity events occur."

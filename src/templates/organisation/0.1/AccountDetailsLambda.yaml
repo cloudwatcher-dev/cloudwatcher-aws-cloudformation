@@ -1,0 +1,122 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Lambda function for fetching account details
+
+Parameters:
+  ExternalSQSArn:
+    Type: String
+    Description: The ARN of the external SQS Queue in Account B
+  WorkspaceId:
+    Type: String
+    Description: Cloudwatcher Workspace ID
+
+Resources:
+  SixHourlyEventRuleForAccountDetails:
+      Type: "AWS::Events::Rule"
+      Properties:
+        ScheduleExpression: "rate(6 hours)"
+        Targets:
+          - Arn: !GetAtt AccountDetailsLambda.Arn
+            Id: "AccountDetailsLambdaTrigger"
+        State: "ENABLED"
+
+  LambdaInvokePermissionForEventRuleForAccountDetails:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !GetAtt AccountDetailsLambda.Arn
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt SixHourlyEventRuleForAccountDetails.Arn
+
+  AccountDetailsLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.handler
+      FunctionName: !Sub "Cloudwatcher-AccountDetailsLambda"
+      Role: !GetAtt LambdaExecutionRoleForAccountDetails.Arn
+      Runtime: nodejs20.x
+      Timeout: 60
+      Code:
+        ZipFile: |
+          const { SQSClient, SendMessageCommand } = require('@aws-sdk/client-sqs');
+          const { OrganizationsClient, ListAccountsCommand, ListRootsCommand } = require('@aws-sdk/client-organizations');
+
+          exports.handler = async () => {
+            const sqsClient = new SQSClient({ region: process.env.EXTERNAL_SQS_REGION });
+            const orgClient = new OrganizationsClient({ region: process.env.AWS_REGION });
+            const externalQueueUrl = process.env.EXTERNAL_SQS_URL;
+
+            const accounts = [];
+            let nextToken;
+
+            const rootCommand = new ListRootsCommand({});
+            const rootResponse = await orgClient.send(rootCommand);
+            const rootAccountId = rootResponse.Roots[0].Arn.split(':')[4];
+
+            do {
+              const command = new ListAccountsCommand({ NextToken: nextToken });
+              const response = await orgClient.send(command);
+              accounts.push(...response.Accounts.map(acc => ({ AccountId: acc.Id, Alias: acc.Name })));
+              nextToken = response.NextToken;
+            } while (nextToken);
+
+            const params = {
+              QueueUrl: externalQueueUrl,
+              MessageBody: JSON.stringify({ 
+                workspaceId: process.env.WORKSPACE_ID,
+                type: 'ACCOUNT_DETAILS',
+                rootAccountId,
+                accounts 
+              }),
+            };
+            console.log(params);
+            await sqsClient.send(new SendMessageCommand(params));
+          };
+      Environment:
+        Variables:
+          EXTERNAL_SQS_REGION: !Select [3, !Split [":", !Ref ExternalSQSArn]]
+          WORKSPACE_ID: !Ref WorkspaceId
+          EXTERNAL_SQS_URL: !Join
+            - ""
+            - - "https://sqs."
+              - !Select [3, !Split [":", !Ref ExternalSQSArn]]
+              - ".amazonaws.com/"
+              - !Select [4, !Split [":", !Ref ExternalSQSArn]]
+              - "/"
+              - !Select [5, !Split [":", !Ref ExternalSQSArn]]
+
+  LambdaExecutionRoleForAccountDetails:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: LambdaSQSAccountDetailsPolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sqs:SendMessage
+                Resource: 
+                  - !Ref ExternalSQSArn
+              - Effect: Allow
+                Action:
+                  - organizations:ListAccounts
+                  - organizations:ListRoots
+                Resource: "*" 
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${AWS::StackName}-AccountDetailsLambda:*"
+  
+Outputs:
+  AccountDetailsLambdaArn:
+    Description: ARN of the Account Details Lambda function
+    Value: !GetAtt AccountDetailsLambda.Arn
