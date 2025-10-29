@@ -49,38 +49,26 @@ jobs:
           sudo /tmp/aws/install --update
           rm -rf /tmp/aws/
 
-      # Run Cloudformation
-      - name: Run cfn
+      # Create/Update S3 Bucket for CloudFormation templates
+      - name: Deploy S3 Bucket
         run: |
           aws cloudformation deploy \
           --stack-name cloudwatcher-cloudformation-stage \
           --template-file cloudformation.yml \
           --parameter-overrides \
               BucketName=cloudwatcher-cloudformation-stage \
-              DomainName=cfn-stage.cloudwatcher.io \
-              RootDomainName=stage.cloudwatcher.io \
-              ACMCertificateArn=arn:aws:acm:us-east-1:509399595438:certificate/5beab081-56c6-4cc1-b570-38583601bc74 \
-          --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
           --no-fail-on-empty-changeset
 
-      # Create No Index Robots.txt
-      - name: Create No Index Robots
-        run: |
-          cat > ./src/robots.txt << EOF
-          User-agent: *
-          Disallow: /
-          EOF
-
-      # Upload To S3
-      - name: Deploy to S3
-        run: aws s3 cp --recursive ./src/ s3://cloudwatcher-cloudformation-stage/
+      # Upload CloudFormation Templates to S3
+      - name: Upload Templates to S3
+        run: aws s3 sync src/templates/organisation/0.1/ s3://cloudwatcher-cloudformation-stage/templates/organisation/0.1/ --exclude "*.sh" --delete
 
       # Test CloudFormation Stack with ChangeSet
       - name: Test CFN Stack with ChangeSet
         run: |
           STACK_NAME="cloudwatcher-org-test-stack"
           CHANGESET_NAME="test-changeset-$(date +%s)"
-          TEMPLATE_URL="https://cloudwatcher-cfn-stage.s3.eu-central-1.amazonaws.com/templates/organisation/0.1/RootStack.yaml"
+          TEMPLATE_URL="https://cloudwatcher-cloudformation-stage.s3.eu-central-1.amazonaws.com/templates/organisation/0.1/RootStack.yaml"
           
           echo "🧪 Testing CloudFormation Stack with ChangeSet"
           echo "Stack: $STACK_NAME"
