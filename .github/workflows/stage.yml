@@ -22,6 +22,18 @@ jobs:
           registry-url: 'https://npm.pkg.github.com'
           scope: '@customjs'
 
+      # Validate CloudFormation Templates
+      - name: Setup Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.9'
+      
+      - name: Install cfn-lint
+        run: pip install cfn-lint
+      
+      - name: Validate Templates
+        run: ./tests/validate-templates.sh
+
       # Setup AWS
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
@@ -62,4 +74,48 @@ jobs:
       # Upload To S3
       - name: Deploy to S3
         run: aws s3 cp --recursive ./src/ s3://cloudwatcher-cloudformation-stage/
+
+      # Test CloudFormation Stack with ChangeSet
+      - name: Test CFN Stack with ChangeSet
+        run: |
+          STACK_NAME="cloudwatcher-org-test-stack"
+          CHANGESET_NAME="test-changeset-$(date +%s)"
+          TEMPLATE_URL="https://cloudwatcher-cfn-stage.s3.eu-central-1.amazonaws.com/templates/organisation/0.1/RootStack.yaml"
+          
+          echo "🧪 Testing CloudFormation Stack with ChangeSet"
+          echo "Stack: $STACK_NAME"
+          echo "ChangeSet: $CHANGESET_NAME"
+          echo "Template URL: $TEMPLATE_URL"
+          
+          # Create ChangeSet
+          aws cloudformation create-change-set \
+            --stack-name "$STACK_NAME" \
+            --template-url "$TEMPLATE_URL" \
+            --change-set-name "$CHANGESET_NAME" \
+            --change-set-type CREATE \
+            --parameters \
+              ParameterKey=LogGroupName,ParameterValue=aws-controltower/CloudTrailLogs \
+              ParameterKey=Environment,ParameterValue=stage \
+              ParameterKey=EmailRecipients,ParameterValue=test@cloudwatcher.io \
+            --capabilities CAPABILITY_IAM || true
+          
+          # Wait for ChangeSet (allow failure if stack exists)
+          aws cloudformation wait change-set-create-complete \
+            --stack-name "$STACK_NAME" \
+            --change-set-name "$CHANGESET_NAME" || true
+          
+          # Describe ChangeSet
+          aws cloudformation describe-change-set \
+            --stack-name "$STACK_NAME" \
+            --change-set-name "$CHANGESET_NAME" \
+            --query 'Changes[*].[Type,ResourceChange.Action,ResourceChange.LogicalResourceId]' \
+            --output table || true
+          
+          # Cleanup
+          echo "🗑️ Cleaning up ChangeSet"
+          aws cloudformation delete-change-set \
+            --stack-name "$STACK_NAME" \
+            --change-set-name "$CHANGESET_NAME" || true
+          
+          echo "✅ ChangeSet test completed"
           

@@ -1,0 +1,14 @@
+project:
+  name: cloudwatcher-cfn
+  regions:
+    - eu-central-1
+  
+tests:
+  default:
+    template: src/templates/organisation/0.1/RootStack.yaml
+    parameters:
+      LogGroupName: aws-controltower/CloudTrailLogs
+      Environment: stage
+      EmailRecipients: test@example.com
+    regions:
+      - eu-central-1

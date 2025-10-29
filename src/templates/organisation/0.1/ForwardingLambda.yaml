@@ -1,18 +1,78 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: "Lambda function for forwarding events to SQS"
+Description: "Lambda function for forwarding CloudWatch Alarms to Email via SNS"
 
 Parameters:
-  ExternalSQSArn:
-    Type: String
-    Description: "The ARN of the external SQS Queue in Account B"
+  EmailRecipients:
+    Type: CommaDelimitedList
+    Description: "Comma-separated list of email addresses to receive alarm notifications (e.g., user1@example.com,user2@example.com)"
   LogGroupName:
     Type: String
     Description: "Name of the CloudWatch Log Group"
-  WorkspaceId:
-    Type: String
-    Description: "Cloudwatcher Workspace ID"
+
+Conditions:
+  HasEmail1: !Not [!Equals [!Select [0, !Ref EmailRecipients], ""]]
+  HasEmail2: !And
+    - !Not [!Equals [!Join ["", !Ref EmailRecipients], !Select [0, !Ref EmailRecipients]]]
+    - !Not [!Equals [!Select [1, !Ref EmailRecipients], ""]]
+  HasEmail3: !And
+    - Condition: HasEmail2
+    - !Not [!Equals [!Select [2, !Ref EmailRecipients], ""]]
+  HasEmail4: !And
+    - Condition: HasEmail3
+    - !Not [!Equals [!Select [3, !Ref EmailRecipients], ""]]
+  HasEmail5: !And
+    - Condition: HasEmail4
+    - !Not [!Equals [!Select [4, !Ref EmailRecipients], ""]]
 
 Resources:
+  # SNS Topic for alarm notifications
+  AlarmNotificationTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: "Cloudwatcher-AlarmNotifications"
+      DisplayName: "CloudWatch Alarm Notifications"
+
+  # Email Subscriptions - CloudFormation will create subscriptions for each email
+  EmailSubscription1:
+    Type: AWS::SNS::Subscription
+    Condition: HasEmail1
+    Properties:
+      Protocol: email
+      TopicArn: !Ref AlarmNotificationTopic
+      Endpoint: !Select [0, !Ref EmailRecipients]
+
+  EmailSubscription2:
+    Type: AWS::SNS::Subscription
+    Condition: HasEmail2
+    Properties:
+      Protocol: email
+      TopicArn: !Ref AlarmNotificationTopic
+      Endpoint: !Select [1, !Ref EmailRecipients]
+
+  EmailSubscription3:
+    Type: AWS::SNS::Subscription
+    Condition: HasEmail3
+    Properties:
+      Protocol: email
+      TopicArn: !Ref AlarmNotificationTopic
+      Endpoint: !Select [2, !Ref EmailRecipients]
+
+  EmailSubscription4:
+    Type: AWS::SNS::Subscription
+    Condition: HasEmail4
+    Properties:
+      Protocol: email
+      TopicArn: !Ref AlarmNotificationTopic
+      Endpoint: !Select [3, !Ref EmailRecipients]
+
+  EmailSubscription5:
+    Type: AWS::SNS::Subscription
+    Condition: HasEmail5
+    Properties:
+      Protocol: email
+      TopicArn: !Ref AlarmNotificationTopic
+      Endpoint: !Select [4, !Ref EmailRecipients]
+
   LambdaInvokePermissionForCloudWatch:
     Type: "AWS::Lambda::Permission"
     Properties:
@@ -37,16 +97,92 @@ Resources:
       Timeout: 60
       Code:
         ZipFile: |
-          const { SQSClient, SendMessageCommand } = require('@aws-sdk/client-sqs');
+          const { SNSClient, PublishCommand } = require('@aws-sdk/client-sns');
           const { CloudWatchLogsClient, FilterLogEventsCommand } = require('@aws-sdk/client-cloudwatch-logs');
+          const { OrganizationsClient, DescribeAccountCommand } = require('@aws-sdk/client-organizations');
+
+          // Get account name from AWS Organizations
+          async function getAccountName(accountId) {
+            try {
+              const orgClient = new OrganizationsClient({ region: 'us-east-1' }); // Organizations is global
+              const command = new DescribeAccountCommand({ AccountId: accountId });
+              const response = await orgClient.send(command);
+              return response.Account?.Name || accountId;
+            } catch (error) {
+              console.log('Error fetching account name:', error.message);
+              return accountId; // Fallback to account ID if error
+            }
+          }
+
+          // Format log entry as readable plain text
+          function formatLogEntry(log, index) {
+            const timestamp = new Date(log.eventTime).toISOString().replace('T', ' ').substring(0, 19);
+            const lines = [
+              `[${index + 1}] ${timestamp} UTC`,
+              `    Event:      ${log.eventName || 'N/A'}`,
+              `    User:       ${log.userIdentity?.principalId || log.userIdentity?.userName || 'N/A'}`,
+              `    Source IP:  ${log.sourceIPAddress || 'N/A'}`,
+            ];
+            
+            if (log.errorCode) {
+              lines.push(`    Error:      ${log.errorCode}`);
+            }
+            if (log.errorMessage) {
+              lines.push(`    Message:    ${log.errorMessage}`);
+            }
+            if (log.requestParameters) {
+              lines.push(`    Request:    ${JSON.stringify(log.requestParameters).substring(0, 100)}`);
+            }
+            
+            return lines.join('\n');
+          }
+
+          // Format complete email message
+          function formatEmailMessage(alarmData, cloudwatchLogEntries, accountName, accountId) {
+            const alarmState = alarmData.state.value;
+            const prevState = alarmData.previousState.value;
+            const alarmName = alarmData.alarmName;
+            const timestamp = new Date(alarmData.state.timestamp).toISOString().replace('T', ' ').substring(0, 19);
+            
+            const statusEmoji = alarmState === 'ALARM' ? '🚨' : '✅';
+            const separator = '═'.repeat(60);
+            const divider = '─'.repeat(60);
+            
+            let message = [
+              separator,
+              `${statusEmoji} CloudWatch Alarm: ${alarmName}`,
+              separator,
+              '',
+              `Status:     ${prevState} → ${alarmState}`,
+              `Timestamp:  ${timestamp} UTC`,
+              `Account:    ${accountName} (${accountId})`,
+              '',
+              divider,
+              `📋 CloudWatch Log Entries (${cloudwatchLogEntries.length} found)`,
+              divider,
+              ''
+            ];
+            
+            // Add formatted log entries
+            cloudwatchLogEntries.forEach((log, index) => {
+              message.push(formatLogEntry(log, index));
+              message.push('');
+            });
+            
+            message.push(divider);
+            message.push('Generated by Cloudwatcher');
+            message.push(separator);
+            
+            return message.join('\n');
+          }
 
           exports.handler = async (event) => {
             const alarmState = event.alarmData.state.value;
             const prevState = event.alarmData.previousState.value;
             console.log('alarmState', alarmState, prevState);
-            const sqsClient = new SQSClient({region :process.env.EXTERNAL_SQS_REGION});
+            
+            const snsClient = new SNSClient({ region: process.env.AWS_REGION });
             const cloudWatchLogsClient = new CloudWatchLogsClient({ region: process.env.AWS_REGION });
-            const externalQueueUrl = process.env.EXTERNAL_SQS_URL;
             const reasonData = JSON.parse(event.alarmData.state.reasonData || '{}');
             const previousReasonData = JSON.parse(event.alarmData.previousState.reasonData || '{}');
             const logGroupName = process.env.LOG_GROUP_NAME;
@@ -91,43 +227,40 @@ Resources:
             let cloudwatchLogEntries = logData.events.map(logEvent => JSON.parse(logEvent.message));
             console.log('cloudwatchLogEntries', cloudwatchLogEntries);
 
-
             if(cloudwatchLogEntries.length === 0){
               console.log('alarmName', alarmName, cloudwatchLogEntries.length);  
               return;
             }
 
+            // Get account name from Organizations
+            const accountId = event.alarmData.configuration?.accountId || event.accountId || process.env.AWS_ACCOUNT_ID;
+            const accountName = await getAccountName(accountId);
+            console.log('Account:', accountName, accountId);
+
+            // Format and send email via SNS
+            const emailMessage = formatEmailMessage(event.alarmData, cloudwatchLogEntries, accountName, accountId);
+            const subject = `${alarmState === 'ALARM' ? '🚨' : '✅'} CloudWatch Alert: ${alarmName}`;
+            
             const params = {
-                QueueUrl: externalQueueUrl,
-                MessageBody: JSON.stringify({
-                  ...event, 
-                  cloudwatchLogEntries,
-                  workspaceId: process.env.WORKSPACE_ID,
-                  type: `CLOUDWATCHER_${alarmState}`,
-                }),
+              TopicArn: process.env.SNS_TOPIC_ARN,
+              Subject: subject,
+              Message: emailMessage,
             };
-            const command = new SendMessageCommand(params);
-            try{
-              await sqsClient.send(command);
-            }catch(e){
-              console.log('Error sending message to SQS', e, cloudwatchLogEntries.length, params);
+            
+            const command = new PublishCommand(params);
+            try {
+              await snsClient.send(command);
+              console.log('Email notification sent successfully');
+            } catch(e) {
+              console.log('Error sending SNS notification', e);
             }
           };
       Environment:
         Variables:
           LOG_GROUP_NAME: !Ref LogGroupName
-          EXTERNAL_SQS_REGION: !Select [3, !Split [":", !Ref ExternalSQSArn]]
-          WORKSPACE_ID: !Ref WorkspaceId
-          EXTERNAL_SQS_URL: !Join
-            - ""
-            - - "https://sqs."
-              - !Select [3, !Split [":", !Ref ExternalSQSArn]]
-              - ".amazonaws.com/"
-              - !Select [4, !Split [":", !Ref ExternalSQSArn]]
-              - "/"
-              - !Select [5, !Split [":", !Ref ExternalSQSArn]]
+          SNS_TOPIC_ARN: !Ref AlarmNotificationTopic
 
-  # IAM Role for the Lambda function to send messages to the external SQS Queue
+  # IAM Role for the Lambda function to publish to SNS and read CloudWatch Logs
   LambdaExecutionRole:
     Type: "AWS::IAM::Role"
     Properties:
@@ -139,16 +272,16 @@ Resources:
               Service: lambda.amazonaws.com
             Action: sts:AssumeRole
       Policies:
-        - PolicyName: "LambdaSQSForwardingPolicy"
+        - PolicyName: "LambdaSNSPublishPolicy"
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
               - Effect: Allow
                 Action:
-                  - "sqs:SendMessage"
+                  - "sns:Publish"
                   - "logs:FilterLogEvents"
                 Resource:
-                  - !Ref ExternalSQSArn
+                  - !Ref AlarmNotificationTopic
                   - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${LogGroupName}"
                   - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${LogGroupName}:log-stream:*"
               - Effect: Allow
@@ -156,9 +289,21 @@ Resources:
                   - "logs:CreateLogGroup"
                   - "logs:CreateLogStream"
                   - "logs:PutLogEvents"
-                Resource: !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${AWS::StackName}-ForwardingLambda:*"
+                Resource: !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/Cloudwatcher-ForwardingLambda:*"
+              - Effect: Allow
+                Action:
+                  - "organizations:DescribeAccount"
+                Resource: "*"
 
 Outputs:
   ForwardingLambdaArn:
     Description: "ARN of the Forwarding Lambda function"
     Value: !GetAtt ForwardingLambda.Arn
+  
+  SNSTopicArn:
+    Description: "ARN of the SNS Topic for alarm notifications"
+    Value: !Ref AlarmNotificationTopic
+  
+  EmailSubscriptionNote:
+    Description: "Important: Check your email inbox and confirm the SNS subscription"
+    Value: !Sub "Confirmation emails have been sent to all recipients. Please confirm to receive alerts."
