@@ -21,7 +21,7 @@ Resources:
   CloudWatchAlarmsStack:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: !Sub "https://cloudwatcher-cfn-${Environment}.s3.eu-central-1.amazonaws.com/templates/organisation/0.1/CloudWatchAlarms.yaml"
+      TemplateURL: !Sub "https://cloudwatcher-cloudformation-${Environment}.s3.eu-central-1.amazonaws.com/templates/organisation/0.1/CloudWatchAlarms.yaml"
       Parameters:
         LogGroupName: !Ref LogGroupName
         ForwardingLambdaArn: !GetAtt ForwardingLambdaStack.Outputs.ForwardingLambdaArn
@@ -30,7 +30,7 @@ Resources:
   ForwardingLambdaStack:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: !Sub "https://cloudwatcher-cfn-${Environment}.s3.eu-central-1.amazonaws.com/templates/organisation/0.1/ForwardingLambda.yaml"
+      TemplateURL: !Sub "https://cloudwatcher-cloudformation-${Environment}.s3.eu-central-1.amazonaws.com/templates/organisation/0.1/ForwardingLambda.yaml"
       Parameters:
         LogGroupName: !Ref LogGroupName
         EmailRecipients: !Join [',', !Ref EmailRecipients]
