@@ -83,7 +83,7 @@ jobs:
             --change-set-type CREATE \
             --parameters \
               ParameterKey=LogGroupName,ParameterValue=aws-controltower/CloudTrailLogs \
-              ParameterKey=EmailRecipients,ParameterValue=test@cloudwatcher.io \
+              ParameterKey=EmailRecipient,ParameterValue=test@cloudwatcher.io \
             --capabilities CAPABILITY_IAM || true
           
           # Wait for ChangeSet (allow failure if stack exists)

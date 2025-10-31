@@ -44,7 +44,7 @@ Main orchestration template that deploys:
 | Parameter | Description | Default |
 |-----------|-------------|---------|
 | `LogGroupName` | CloudWatch Log Group name | `aws-controltower/CloudTrailLogs` |
-| `EmailRecipients` | Comma-separated email addresses | Required |
+| `EmailRecipient` | Email address for notifications | Required |
 
 ### Deploy via AWS Console
 
@@ -66,7 +66,7 @@ aws cloudformation create-stack \
   --template-url https://cloudwatcher-cloudformation-stage.s3.eu-central-1.amazonaws.com/templates/organisation/0.1/RootStack.yaml \
   --parameters \
     ParameterKey=LogGroupName,ParameterValue=aws-controltower/CloudTrailLogs \
-    ParameterKey=EmailRecipients,ParameterValue=security@example.com,admin@example.com \
+    ParameterKey=EmailRecipient,ParameterValue=security@example.com \
   --capabilities CAPABILITY_IAM
 ```
 
@@ -137,7 +137,9 @@ This project is open source and available under the MIT License.
 
 ### Email Confirmation
 
-After deployment, each email recipient will receive a confirmation email from AWS SNS. **You must confirm the subscription** to receive alerts.
+After deployment, the email recipient will receive a confirmation email from AWS SNS. **You must confirm the subscription** to receive alerts.
+
+**Note:** To add additional email recipients, subscribe them manually to the SNS topic `Cloudwatcher-AlarmNotifications` via the AWS SNS Console.
 
 ### Costs
 

@@ -2,27 +2,15 @@ AWSTemplateFormatVersion: "2010-09-09"
 Description: "Lambda function for forwarding CloudWatch Alarms to Email via SNS"
 
 Parameters:
-  EmailRecipients:
-    Type: CommaDelimitedList
-    Description: "Comma-separated list of email addresses to receive alarm notifications (e.g., user1@example.com,user2@example.com)"
+  EmailRecipient:
+    Type: String
+    Description: "Email address to receive alarm notifications"
   LogGroupName:
     Type: String
     Description: "Name of the CloudWatch Log Group"
 
 Conditions:
-  HasEmail1: !Not [!Equals [!Select [0, !Ref EmailRecipients], ""]]
-  HasEmail2: !And
-    - !Not [!Equals [!Join ["", !Ref EmailRecipients], !Select [0, !Ref EmailRecipients]]]
-    - !Not [!Equals [!Select [1, !Ref EmailRecipients], ""]]
-  HasEmail3: !And
-    - Condition: HasEmail2
-    - !Not [!Equals [!Select [2, !Ref EmailRecipients], ""]]
-  HasEmail4: !And
-    - Condition: HasEmail3
-    - !Not [!Equals [!Select [3, !Ref EmailRecipients], ""]]
-  HasEmail5: !And
-    - Condition: HasEmail4
-    - !Not [!Equals [!Select [4, !Ref EmailRecipients], ""]]
+  HasEmail: !Not [!Equals [!Ref EmailRecipient, ""]]
 
 Resources:
   # SNS Topic for alarm notifications
@@ -32,46 +20,15 @@ Resources:
       TopicName: "Cloudwatcher-AlarmNotifications"
       DisplayName: "CloudWatch Alarm Notifications"
 
-  # Email Subscriptions - CloudFormation will create subscriptions for each email
-  EmailSubscription1:
+  # Email Subscription
+  # Additional emails can be added manually via SNS Console after deployment
+  EmailSubscription:
     Type: AWS::SNS::Subscription
-    Condition: HasEmail1
+    Condition: HasEmail
     Properties:
       Protocol: email
       TopicArn: !Ref AlarmNotificationTopic
-      Endpoint: !Select [0, !Ref EmailRecipients]
-
-  EmailSubscription2:
-    Type: AWS::SNS::Subscription
-    Condition: HasEmail2
-    Properties:
-      Protocol: email
-      TopicArn: !Ref AlarmNotificationTopic
-      Endpoint: !Select [1, !Ref EmailRecipients]
-
-  EmailSubscription3:
-    Type: AWS::SNS::Subscription
-    Condition: HasEmail3
-    Properties:
-      Protocol: email
-      TopicArn: !Ref AlarmNotificationTopic
-      Endpoint: !Select [2, !Ref EmailRecipients]
-
-  EmailSubscription4:
-    Type: AWS::SNS::Subscription
-    Condition: HasEmail4
-    Properties:
-      Protocol: email
-      TopicArn: !Ref AlarmNotificationTopic
-      Endpoint: !Select [3, !Ref EmailRecipients]
-
-  EmailSubscription5:
-    Type: AWS::SNS::Subscription
-    Condition: HasEmail5
-    Properties:
-      Protocol: email
-      TopicArn: !Ref AlarmNotificationTopic
-      Endpoint: !Select [4, !Ref EmailRecipients]
+      Endpoint: !Ref EmailRecipient
 
   LambdaInvokePermissionForCloudWatch:
     Type: "AWS::Lambda::Permission"
