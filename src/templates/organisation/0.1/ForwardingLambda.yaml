@@ -71,13 +71,49 @@ Resources:
             }
           }
 
+          // Resolve user ARN to friendly name by parsing the ARN
+          // Works across accounts in AWS Organizations without needing cross-account IAM permissions
+          function resolveUserIdentity(userIdentity) {
+            if (!userIdentity) return 'N/A';
+            
+            // If we already have a userName, use it
+            if (userIdentity.userName) {
+              return userIdentity.userName;
+            }
+            
+            // Extract from ARN
+            const arn = userIdentity.arn;
+            if (!arn) {
+              return userIdentity.principalId || 'N/A';
+            }
+            
+            // Parse ARN to extract user/role name
+            // Format: arn:aws:iam::123456789012:user/username or arn:aws:iam::123456789012:role/rolename
+            // Also handles: arn:aws:sts::123456789012:assumed-role/rolename/session
+            const match = arn.match(/:(user|role|assumed-role)\/([^/]+)/);
+            if (match) {
+              const [, resourceType, resourceName] = match;
+              if (resourceType === 'assumed-role') {
+                return `${resourceName} (AssumedRole)`;
+              } else if (resourceType === 'role') {
+                return `${resourceName} (Role)`;
+              }
+              return resourceName; // user
+            }
+            
+            // Fallback to principalId if ARN parsing fails
+            return userIdentity.principalId || 'N/A';
+          }
+
           // Format log entry as readable plain text
           function formatLogEntry(log, index) {
             const timestamp = new Date(log.eventTime).toISOString().replace('T', ' ').substring(0, 19);
+            const userName = resolveUserIdentity(log.userIdentity);
+            
             const lines = [
               `[${index + 1}] ${timestamp} UTC`,
               `    Event:      ${log.eventName || 'N/A'}`,
-              `    User:       ${log.userIdentity?.principalId || log.userIdentity?.userName || 'N/A'}`,
+              `    User:       ${userName}`,
               `    Source IP:  ${log.sourceIPAddress || 'N/A'}`,
             ];
             
@@ -95,19 +131,19 @@ Resources:
           }
 
           // Format complete email message
-          function formatEmailMessage(alarmData, cloudwatchLogEntries, accountName, accountId) {
+          function formatEmailMessage(alarmData, cloudwatchLogEntries, accountName, accountId, displayName) {
             const alarmState = alarmData.state.value;
             const prevState = alarmData.previousState.value;
             const alarmName = alarmData.alarmName;
             const timestamp = new Date(alarmData.state.timestamp).toISOString().replace('T', ' ').substring(0, 19);
             
             const statusEmoji = alarmState === 'ALARM' ? '🚨' : '✅';
-            const separator = '═'.repeat(60);
-            const divider = '─'.repeat(60);
+            const separator = '═'.repeat(40);
+            const divider = '─'.repeat(40);
             
             let message = [
               separator,
-              `${statusEmoji} CloudWatch Alarm: ${alarmName}`,
+              `${statusEmoji} CloudWatch Alarm: ${displayName || alarmName}`,
               separator,
               '',
               `Status:     ${prevState} → ${alarmState}`,
@@ -138,6 +174,13 @@ Resources:
             const prevState = event.alarmData.previousState.value;
             console.log('alarmState', alarmState, prevState);
             
+            // Skip notification if alarm is resolving (ALARM → OK)
+            // For security events, we only care when something suspicious happens, not when it stops
+            if (alarmState !== "ALARM" && prevState === "ALARM") {
+              console.log('Alarm resolved, skipping notification');
+              return;
+            }
+            
             const snsClient = new SNSClient({ region: process.env.AWS_REGION });
             const cloudWatchLogsClient = new CloudWatchLogsClient({ region: process.env.AWS_REGION });
             const reasonData = JSON.parse(event.alarmData.state.reasonData || '{}');
@@ -160,13 +203,14 @@ Resources:
               sso: "sso.amazonaws.com"
             };
 
-            let startTime = new Date(reasonData.startDate).getTime();
-            const endTime = new Date(event.alarmData.state.timestamp).getTime();
-            
-            if (alarmState !== "ALARM" && prevState === "ALARM") {
-              startTime = new Date(previousReasonData.startDate || previousReasonData.queryDate).getTime();
-              console.log('End of alarm, checking logs again');
-            } 
+            const serviceDisplayNames = {
+              iam: "IAM",
+              sts: "Login (STS)",
+              sso: "SSO"
+            };
+
+            const startTime = new Date(reasonData.startDate).getTime();
+            const endTime = new Date(event.alarmData.state.timestamp).getTime(); 
             
             let filterFieldKey = "eventName";
             let filterFieldValue = eventName;
@@ -194,9 +238,13 @@ Resources:
             const accountName = await getAccountName(accountId);
             console.log('Account:', accountName, accountId);
 
+            // Create display name for better readability
+            const serviceDisplayName = serviceDisplayNames[prefix] || prefix.toUpperCase();
+            const displayName = `${serviceDisplayName}: ${eventName}`;
+
             // Format and send email via SNS
-            const emailMessage = formatEmailMessage(event.alarmData, cloudwatchLogEntries, accountName, accountId);
-            const subject = `${alarmState === 'ALARM' ? '🚨' : '✅'} CloudWatch Alert: ${alarmName}`;
+            const emailMessage = formatEmailMessage(event.alarmData, cloudwatchLogEntries, accountName, accountId, displayName);
+            const subject = `${alarmState === 'ALARM' ? '🚨' : '✅'} CloudWatch Alert: ${displayName}`;
             
             const params = {
               TopicArn: process.env.SNS_TOPIC_ARN,

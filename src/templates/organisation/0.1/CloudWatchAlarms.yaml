@@ -57,4 +57,12 @@ Resources:
       Parameters:
         LogGroupName: !Ref LogGroupName
         ForwardingLambdaArn: !Ref ForwardingLambdaArn
+
+  AlarmIAMUserActivity:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://cloudwatcher-cloudformation-stage.s3.eu-central-1.amazonaws.com/templates/organisation/0.1/alarms/CW/IAMUserActivity.yaml
+      Parameters:
+        LogGroupName: !Ref LogGroupName
+        ForwardingLambdaArn: !Ref ForwardingLambdaArn
     

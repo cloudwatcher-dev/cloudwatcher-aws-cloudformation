@@ -1,0 +1,38 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: CloudWatch Metric Filter and Alarm for all IAM User activities.
+Parameters:
+  LogGroupName:
+    Type: String
+  ForwardingLambdaArn:
+    Type: String
+    Description: The ARN of the Forwarding Lambda function
+
+Resources:
+  IAMUserActivityEventFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: !Ref LogGroupName
+      FilterPattern: '{ ($.eventSource = "iam.amazonaws.com") && ($.userIdentity.type = "IAMUser") }'
+      MetricTransformations:
+        - MetricValue: 1
+          MetricNamespace: CLOUDWATCHER
+          MetricName: IAMUserActivityEvent
+
+  IAMUserActivityAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: "iam:userIdentity.type_IAMUserAlarm:CW.1.6"
+      MetricName: "IAMUserActivityEvent"
+      Namespace: "CLOUDWATCHER"
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      AlarmActions:
+        - !Ref ForwardingLambdaArn
+      OKActions:
+        - !Ref ForwardingLambdaArn
+      InsufficientDataActions:
+        - !Ref ForwardingLambdaArn
+      AlarmDescription: "Alarm when any IAM User activity occurs."
