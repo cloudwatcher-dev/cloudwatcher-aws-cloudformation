@@ -44,7 +44,6 @@ Main orchestration template that deploys:
 | Parameter | Description | Default |
 |-----------|-------------|---------|
 | `LogGroupName` | CloudWatch Log Group name | `aws-controltower/CloudTrailLogs` |
-| `Environment` | Deployment environment | `prod` |
 | `EmailRecipients` | Comma-separated email addresses | Required |
 
 ### Deploy via AWS Console
@@ -67,7 +66,6 @@ aws cloudformation create-stack \
   --template-url https://cloudwatcher-cloudformation-stage.s3.eu-central-1.amazonaws.com/templates/organisation/0.1/RootStack.yaml \
   --parameters \
     ParameterKey=LogGroupName,ParameterValue=aws-controltower/CloudTrailLogs \
-    ParameterKey=Environment,ParameterValue=stage \
     ParameterKey=EmailRecipients,ParameterValue=security@example.com,admin@example.com \
   --capabilities CAPABILITY_IAM
 ```

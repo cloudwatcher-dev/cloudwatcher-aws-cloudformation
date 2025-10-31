@@ -8,16 +8,12 @@ Parameters:
   ForwardingLambdaArn:
     Type: String
     Description: The ARN of the Forwarding Lambda function
-  Environment:
-    Type: String
-    Description: The deployment environment (e.g., stage, prod)
-    Default: stage
 
 Resources:
   AlarmAccessDenied:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: !Sub "https://cloudwatcher-cfn-${Environment}.s3.eu-central-1.amazonaws.com/templates/organisation/0.1/alarms/CW/AccessDenied.yaml"
+      TemplateURL: https://cloudwatcher-cloudformation-stage.s3.eu-central-1.amazonaws.com/templates/organisation/0.1/alarms/CW/AccessDenied.yaml
       Parameters:
         LogGroupName: !Ref LogGroupName
         ForwardingLambdaArn: !Ref ForwardingLambdaArn
@@ -25,7 +21,7 @@ Resources:
   AlarmGetCallerIdentity:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: !Sub "https://cloudwatcher-cfn-${Environment}.s3.eu-central-1.amazonaws.com/templates/organisation/0.1/alarms/CW/GetCallerIdentity.yaml"
+      TemplateURL: https://cloudwatcher-cloudformation-stage.s3.eu-central-1.amazonaws.com/templates/organisation/0.1/alarms/CW/GetCallerIdentity.yaml
       Parameters:
         LogGroupName: !Ref LogGroupName
         ForwardingLambdaArn: !Ref ForwardingLambdaArn
@@ -33,7 +29,7 @@ Resources:
   AttachUserPolicy:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: !Sub "https://cloudwatcher-cfn-${Environment}.s3.eu-central-1.amazonaws.com/templates/organisation/0.1/alarms/CW/AttachUserPolicy.yaml"
+      TemplateURL: https://cloudwatcher-cloudformation-stage.s3.eu-central-1.amazonaws.com/templates/organisation/0.1/alarms/CW/AttachUserPolicy.yaml
       Parameters:
         LogGroupName: !Ref LogGroupName
         ForwardingLambdaArn: !Ref ForwardingLambdaArn
@@ -41,7 +37,7 @@ Resources:
   AlarmAuthenticate:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: !Sub "https://cloudwatcher-cfn-${Environment}.s3.eu-central-1.amazonaws.com/templates/organisation/0.1/alarms/CW/Authenticate.yaml"
+      TemplateURL: https://cloudwatcher-cloudformation-stage.s3.eu-central-1.amazonaws.com/templates/organisation/0.1/alarms/CW/Authenticate.yaml
       Parameters:
         LogGroupName: !Ref LogGroupName
         ForwardingLambdaArn: !Ref ForwardingLambdaArn
@@ -49,7 +45,7 @@ Resources:
   AlarmCreateUser:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: !Sub "https://cloudwatcher-cfn-${Environment}.s3.eu-central-1.amazonaws.com/templates/organisation/0.1/alarms/CW/CreateUser.yaml"
+      TemplateURL: https://cloudwatcher-cloudformation-stage.s3.eu-central-1.amazonaws.com/templates/organisation/0.1/alarms/CW/CreateUser.yaml
       Parameters:
         LogGroupName: !Ref LogGroupName
         ForwardingLambdaArn: !Ref ForwardingLambdaArn
@@ -57,7 +53,7 @@ Resources:
   AlarmDeleteUser:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: !Sub "https://cloudwatcher-cfn-${Environment}.s3.eu-central-1.amazonaws.com/templates/organisation/0.1/alarms/CW/DeleteUser.yaml"
+      TemplateURL: https://cloudwatcher-cloudformation-stage.s3.eu-central-1.amazonaws.com/templates/organisation/0.1/alarms/CW/DeleteUser.yaml
       Parameters:
         LogGroupName: !Ref LogGroupName
         ForwardingLambdaArn: !Ref ForwardingLambdaArn

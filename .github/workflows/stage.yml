@@ -83,7 +83,6 @@ jobs:
             --change-set-type CREATE \
             --parameters \
               ParameterKey=LogGroupName,ParameterValue=aws-controltower/CloudTrailLogs \
-              ParameterKey=Environment,ParameterValue=stage \
               ParameterKey=EmailRecipients,ParameterValue=test@cloudwatcher.io \
             --capabilities CAPABILITY_IAM || true
           

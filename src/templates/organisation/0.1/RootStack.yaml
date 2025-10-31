@@ -6,31 +6,23 @@ Parameters:
     Type: String
     Description: Name of the CloudWatch Log Group
     Default: aws-controltower/CloudTrailLogs
-  Environment:
-    Type: String
-    Description: The Cloudwatcher environment
-    Default: prod
   EmailRecipients:
     Type: CommaDelimitedList
     Description: Comma-separated list of email addresses to receive alarm notifications
-
-Conditions:
-  IsProd: !Equals [!Ref Environment, "prod"]
 
 Resources:
   CloudWatchAlarmsStack:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: !Sub "https://cloudwatcher-cloudformation-${Environment}.s3.eu-central-1.amazonaws.com/templates/organisation/0.1/CloudWatchAlarms.yaml"
+      TemplateURL: https://cloudwatcher-cloudformation-stage.s3.eu-central-1.amazonaws.com/templates/organisation/0.1/CloudWatchAlarms.yaml
       Parameters:
         LogGroupName: !Ref LogGroupName
         ForwardingLambdaArn: !GetAtt ForwardingLambdaStack.Outputs.ForwardingLambdaArn
-        Environment: !Ref Environment
 
   ForwardingLambdaStack:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: !Sub "https://cloudwatcher-cloudformation-${Environment}.s3.eu-central-1.amazonaws.com/templates/organisation/0.1/ForwardingLambda.yaml"
+      TemplateURL: https://cloudwatcher-cloudformation-stage.s3.eu-central-1.amazonaws.com/templates/organisation/0.1/ForwardingLambda.yaml
       Parameters:
         LogGroupName: !Ref LogGroupName
         EmailRecipients: !Join [',', !Ref EmailRecipients]
