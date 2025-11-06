@@ -21,7 +21,7 @@ Resources:
   IAMUserActivityAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmName: "iam:userIdentity.type_IAMUserAlarm:CW.1.6"
+      AlarmName: "iam:IAMUserActivityAlarm:CW.1.6"
       MetricName: "IAMUserActivityEvent"
       Namespace: "CLOUDWATCHER"
       Statistic: Sum

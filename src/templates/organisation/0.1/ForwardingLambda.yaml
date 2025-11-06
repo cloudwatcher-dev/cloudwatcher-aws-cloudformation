@@ -76,6 +76,15 @@ Resources:
           function resolveUserIdentity(userIdentity) {
             if (!userIdentity) return 'N/A';
             
+            // Handle SSO authentication - show N/A for user
+            if (userIdentity.type === 'AssumedRole' && userIdentity.principalId && userIdentity.principalId.includes(':')) {
+              // SSO sessions have principalId format: AROAXXXXXXXXX:user@example.com
+              const sessionName = userIdentity.principalId.split(':')[1];
+              if (sessionName && sessionName.includes('@')) {
+                return 'N/A (SSO)';
+              }
+            }
+            
             // If we already have a userName, use it
             if (userIdentity.userName) {
               return userIdentity.userName;
@@ -233,8 +242,13 @@ Resources:
               return;
             }
 
-            // Get account name from Organizations
-            const accountId = event.alarmData.configuration?.accountId || event.accountId || process.env.AWS_ACCOUNT_ID;
+            // Get account ID from the actual log entry (where the error occurred)
+            // instead of the central CloudTrail account
+            const accountId = cloudwatchLogEntries[0]?.recipientAccountId || 
+                             cloudwatchLogEntries[0]?.userIdentity?.accountId || 
+                             event.alarmData.configuration?.accountId || 
+                             event.accountId || 
+                             process.env.AWS_ACCOUNT_ID;
             const accountName = await getAccountName(accountId);
             console.log('Account:', accountName, accountId);
 
