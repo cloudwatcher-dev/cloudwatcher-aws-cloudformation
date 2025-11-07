@@ -76,15 +76,6 @@ Resources:
           function resolveUserIdentity(userIdentity) {
             if (!userIdentity) return 'N/A';
             
-            // Handle SSO authentication - show N/A for user
-            if (userIdentity.type === 'AssumedRole' && userIdentity.principalId && userIdentity.principalId.includes(':')) {
-              // SSO sessions have principalId format: AROAXXXXXXXXX:user@example.com
-              const sessionName = userIdentity.principalId.split(':')[1];
-              if (sessionName && sessionName.includes('@')) {
-                return 'N/A (SSO)';
-              }
-            }
-            
             // If we already have a userName, use it
             if (userIdentity.userName) {
               return userIdentity.userName;
@@ -117,7 +108,11 @@ Resources:
           // Format log entry as readable plain text
           function formatLogEntry(log, index) {
             const timestamp = new Date(log.eventTime).toISOString().replace('T', ' ').substring(0, 19);
-            const userName = resolveUserIdentity(log.userIdentity);
+            
+            // For SSO events, always show N/A - check eventSource directly (most reliable)
+            const userName = log.eventSource === 'sso.amazonaws.com' 
+              ? 'N/A (SSO)' 
+              : resolveUserIdentity(log.userIdentity);
             
             const lines = [
               `[${index + 1}] ${timestamp} UTC`,
