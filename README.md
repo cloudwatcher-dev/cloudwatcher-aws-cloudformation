@@ -46,6 +46,15 @@ Template URL:
 https://cloudwatcher-cloudformation-prod.s3.eu-central-1.amazonaws.com/templates/organisation/0.1/RootStack.yaml
 ```
 
+### Important: Email Confirmation Required
+
+After deployment, you will receive an **AWS SNS confirmation email** at the address you provided. 
+
+⚠️ **Important Notes:**
+- You **must click the confirmation link** in the email to start receiving alerts
+- The confirmation email may land in your **spam/junk folder** - please check there if you don't see it
+- You will **not receive any alarm notifications** until you confirm the subscription
+
 ### Parameters
 
 #### Required Parameters
