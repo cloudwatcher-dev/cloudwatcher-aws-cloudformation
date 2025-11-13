@@ -57,7 +57,8 @@ jobs:
           --template-file cloudformation.yml \
           --parameter-overrides \
               BucketName=cloudwatcher-cloudformation-stage \
-          --no-fail-on-empty-changeset
+          --no-fail-on-empty-changeset \
+          --force-upload
 
       # Upload CloudFormation Templates to S3
       - name: Upload Templates to S3
