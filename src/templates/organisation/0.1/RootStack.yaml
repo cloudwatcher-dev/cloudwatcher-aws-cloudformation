@@ -1,14 +1,52 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: Root template for nested stacks with Lambda code and environment variables
 
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Basic Configuration"
+        Parameters:
+          - EmailRecipient
+          - LogGroupName
+      - Label:
+          default: "Alarm Configuration"
+        Parameters:
+          - EnableAccessDeniedAlarm
+          - EnableGetCallerIdentityAlarm
+          - EnableAttachUserPolicyAlarm
+          - EnableAuthenticateAlarm
+          - EnableCreateUserAlarm
+          - EnableDeleteUserAlarm
+          - EnableIAMUserActivityAlarm
+    ParameterLabels:
+      EmailRecipient:
+        default: "📧 Email Recipient"
+      LogGroupName:
+        default: "📋 CloudWatch Log Group Name"
+      EnableAccessDeniedAlarm:
+        default: "🚫 Access Denied Events"
+      EnableGetCallerIdentityAlarm:
+        default: "🔍 GetCallerIdentity Events"
+      EnableAttachUserPolicyAlarm:
+        default: "📎 AttachUserPolicy Events"
+      EnableAuthenticateAlarm:
+        default: "🔐 SSO Authentication Events"
+      EnableCreateUserAlarm:
+        default: "👤 CreateUser Events"
+      EnableDeleteUserAlarm:
+        default: "🗑️ DeleteUser Events"
+      EnableIAMUserActivityAlarm:
+        default: "⚡ General IAM User Activity"
+
 Parameters:
+  EmailRecipient:
+    Type: String
+    Description: Email address to receive alarm notifications
   LogGroupName:
     Type: String
     Description: Name of the CloudWatch Log Group
     Default: aws-controltower/CloudTrailLogs
-  EmailRecipient:
-    Type: String
-    Description: Email address to receive alarm notifications
   
   # Alarm Enable/Disable Parameters
   EnableAccessDeniedAlarm:

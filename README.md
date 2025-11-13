@@ -22,7 +22,8 @@ Cloudwatcher is an AWS security monitoring solution that automatically detects a
 ### Prerequisites
 
 - AWS Organization with CloudTrail enabled
-- CloudTrail logs sent to CloudWatch Log Group
+- **Must be deployed in the root account** of your AWS Organization
+- CloudTrail logs sent to CloudWatch Log Group (by default, events flow into the `aws-controltower/CloudTrailLogs` log group)
 - Email addresses for receiving alerts
 
 ### Deploy via AWS Console
