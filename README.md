@@ -28,6 +28,20 @@ Cloudwatcher is an AWS security monitoring solution that automatically detects a
 
 ### Deploy via AWS Console
 
+#### Quick Launch (Recommended)
+
+Click the button below to launch the stack with pre-configured parameters:
+
+[![Launch Stack](https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png)](https://eu-west-1.console.aws.amazon.com/cloudformation/home?region=eu-west-1#/stacks/quickcreate?templateURL=https%3A%2F%2Fcloudwatcher-cloudformation-prod.s3.eu-central-1.amazonaws.com%2Ftemplates%2Forganisation%2F0.1%2FRootStack.yaml&stackName=CLOUDWATCHER&param_EmailRecipient=&param_EnableCreateUserAlarm=true&param_EnableGetCallerIdentityAlarm=true&param_EnableAccessDeniedAlarm=true&param_EnableAuthenticateAlarm=true&param_EnableAttachUserPolicyAlarm=true&param_LogGroupName=aws-controltower%2FCloudTrailLogs&param_EnableDeleteUserAlarm=true&param_EnableIAMUserActivityAlarm=true)
+
+Or use this direct link:
+```
+https://eu-west-1.console.aws.amazon.com/cloudformation/home?region=eu-west-1#/stacks/quickcreate?templateURL=https%3A%2F%2Fcloudwatcher-cloudformation-prod.s3.eu-central-1.amazonaws.com%2Ftemplates%2Forganisation%2F0.1%2FRootStack.yaml&stackName=CLOUDWATCHER&param_EmailRecipient=&param_EnableCreateUserAlarm=true&param_EnableGetCallerIdentityAlarm=true&param_EnableAccessDeniedAlarm=true&param_EnableAuthenticateAlarm=true&param_EnableAttachUserPolicyAlarm=true&param_LogGroupName=aws-controltower%2FCloudTrailLogs&param_EnableDeleteUserAlarm=true&param_EnableIAMUserActivityAlarm=true
+```
+
+#### Manual Deployment
+
+Template URL:
 ```
 https://cloudwatcher-cloudformation-prod.s3.eu-central-1.amazonaws.com/templates/organisation/0.1/RootStack.yaml
 ```
