@@ -21,23 +21,23 @@ Metadata:
           - EnableIAMUserActivityAlarm
     ParameterLabels:
       EmailRecipient:
-        default: "📧 Email Recipient"
+        default: "Email Recipient"
       LogGroupName:
-        default: "📋 CloudWatch Log Group Name"
+        default: "CloudWatch Log Group Name"
       EnableAccessDeniedAlarm:
-        default: "🚫 Access Denied Events"
+        default: "Access Denied Events"
       EnableGetCallerIdentityAlarm:
-        default: "🔍 GetCallerIdentity Events"
+        default: "GetCallerIdentity Events"
       EnableAttachUserPolicyAlarm:
-        default: "📎 AttachUserPolicy Events"
+        default: "AttachUserPolicy Events"
       EnableAuthenticateAlarm:
-        default: "🔐 SSO Authentication Events"
+        default: "SSO Authentication Events"
       EnableCreateUserAlarm:
-        default: "👤 CreateUser Events"
+        default: "CreateUser Events"
       EnableDeleteUserAlarm:
-        default: "🗑️ DeleteUser Events"
+        default: "DeleteUser Events"
       EnableIAMUserActivityAlarm:
-        default: "⚡ General IAM User Activity"
+        default: "General IAM User Activity"
 
 Parameters:
   EmailRecipient:
