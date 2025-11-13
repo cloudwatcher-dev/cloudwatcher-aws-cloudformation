@@ -8,10 +8,63 @@ Parameters:
   ForwardingLambdaArn:
     Type: String
     Description: The ARN of the Forwarding Lambda function
+  
+  # Alarm Enable/Disable Parameters
+  EnableAccessDeniedAlarm:
+    Type: String
+    Description: Enable Access Denied alarm
+    Default: 'true'
+    AllowedValues: ['true', 'false']
+  
+  EnableGetCallerIdentityAlarm:
+    Type: String
+    Description: Enable GetCallerIdentity alarm
+    Default: 'true'
+    AllowedValues: ['true', 'false']
+  
+  EnableAttachUserPolicyAlarm:
+    Type: String
+    Description: Enable AttachUserPolicy alarm
+    Default: 'true'
+    AllowedValues: ['true', 'false']
+  
+  EnableAuthenticateAlarm:
+    Type: String
+    Description: Enable Authenticate alarm
+    Default: 'true'
+    AllowedValues: ['true', 'false']
+  
+  EnableCreateUserAlarm:
+    Type: String
+    Description: Enable CreateUser alarm
+    Default: 'true'
+    AllowedValues: ['true', 'false']
+  
+  EnableDeleteUserAlarm:
+    Type: String
+    Description: Enable DeleteUser alarm
+    Default: 'true'
+    AllowedValues: ['true', 'false']
+  
+  EnableIAMUserActivityAlarm:
+    Type: String
+    Description: Enable IAMUserActivity alarm
+    Default: 'true'
+    AllowedValues: ['true', 'false']
+
+Conditions:
+  CreateAccessDeniedAlarm: !Equals [!Ref EnableAccessDeniedAlarm, 'true']
+  CreateGetCallerIdentityAlarm: !Equals [!Ref EnableGetCallerIdentityAlarm, 'true']
+  CreateAttachUserPolicyAlarm: !Equals [!Ref EnableAttachUserPolicyAlarm, 'true']
+  CreateAuthenticateAlarm: !Equals [!Ref EnableAuthenticateAlarm, 'true']
+  CreateCreateUserAlarm: !Equals [!Ref EnableCreateUserAlarm, 'true']
+  CreateDeleteUserAlarm: !Equals [!Ref EnableDeleteUserAlarm, 'true']
+  CreateIAMUserActivityAlarm: !Equals [!Ref EnableIAMUserActivityAlarm, 'true']
 
 Resources:
   AlarmAccessDenied:
     Type: AWS::CloudFormation::Stack
+    Condition: CreateAccessDeniedAlarm
     Properties:
       TemplateURL: https://cloudwatcher-cloudformation-stage.s3.eu-central-1.amazonaws.com/templates/organisation/0.1/alarms/CW/AccessDenied.yaml
       Parameters:
@@ -20,6 +73,7 @@ Resources:
 
   AlarmGetCallerIdentity:
     Type: AWS::CloudFormation::Stack
+    Condition: CreateGetCallerIdentityAlarm
     Properties:
       TemplateURL: https://cloudwatcher-cloudformation-stage.s3.eu-central-1.amazonaws.com/templates/organisation/0.1/alarms/CW/GetCallerIdentity.yaml
       Parameters:
@@ -28,6 +82,7 @@ Resources:
 
   AttachUserPolicy:
     Type: AWS::CloudFormation::Stack
+    Condition: CreateAttachUserPolicyAlarm
     Properties:
       TemplateURL: https://cloudwatcher-cloudformation-stage.s3.eu-central-1.amazonaws.com/templates/organisation/0.1/alarms/CW/AttachUserPolicy.yaml
       Parameters:
@@ -36,6 +91,7 @@ Resources:
 
   AlarmAuthenticate:
     Type: AWS::CloudFormation::Stack
+    Condition: CreateAuthenticateAlarm
     Properties:
       TemplateURL: https://cloudwatcher-cloudformation-stage.s3.eu-central-1.amazonaws.com/templates/organisation/0.1/alarms/CW/Authenticate.yaml
       Parameters:
@@ -44,6 +100,7 @@ Resources:
 
   AlarmCreateUser:
     Type: AWS::CloudFormation::Stack
+    Condition: CreateCreateUserAlarm
     Properties:
       TemplateURL: https://cloudwatcher-cloudformation-stage.s3.eu-central-1.amazonaws.com/templates/organisation/0.1/alarms/CW/CreateUser.yaml
       Parameters:
@@ -52,6 +109,7 @@ Resources:
 
   AlarmDeleteUser:
     Type: AWS::CloudFormation::Stack
+    Condition: CreateDeleteUserAlarm
     Properties:
       TemplateURL: https://cloudwatcher-cloudformation-stage.s3.eu-central-1.amazonaws.com/templates/organisation/0.1/alarms/CW/DeleteUser.yaml
       Parameters:
@@ -60,6 +118,7 @@ Resources:
 
   AlarmIAMUserActivity:
     Type: AWS::CloudFormation::Stack
+    Condition: CreateIAMUserActivityAlarm
     Properties:
       TemplateURL: https://cloudwatcher-cloudformation-stage.s3.eu-central-1.amazonaws.com/templates/organisation/0.1/alarms/CW/IAMUserActivity.yaml
       Parameters:

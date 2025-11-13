@@ -9,6 +9,59 @@ Parameters:
   EmailRecipient:
     Type: String
     Description: Email address to receive alarm notifications
+  
+  # Alarm Enable/Disable Parameters
+  EnableAccessDeniedAlarm:
+    Type: String
+    Description: Enable Access Denied alarm
+    Default: 'true'
+    AllowedValues: ['true', 'false']
+  
+  EnableGetCallerIdentityAlarm:
+    Type: String
+    Description: Enable GetCallerIdentity alarm
+    Default: 'true'
+    AllowedValues: ['true', 'false']
+  
+  EnableAttachUserPolicyAlarm:
+    Type: String
+    Description: Enable AttachUserPolicy alarm
+    Default: 'true'
+    AllowedValues: ['true', 'false']
+  
+  EnableAuthenticateAlarm:
+    Type: String
+    Description: Enable Authenticate alarm
+    Default: 'true'
+    AllowedValues: ['true', 'false']
+  
+  EnableCreateUserAlarm:
+    Type: String
+    Description: Enable CreateUser alarm
+    Default: 'true'
+    AllowedValues: ['true', 'false']
+  
+  EnableDeleteUserAlarm:
+    Type: String
+    Description: Enable DeleteUser alarm
+    Default: 'true'
+    AllowedValues: ['true', 'false']
+  
+  EnableIAMUserActivityAlarm:
+    Type: String
+    Description: Enable IAMUserActivity alarm
+    Default: 'true'
+    AllowedValues: ['true', 'false']
+  
+
+Conditions:
+  CreateAccessDeniedAlarm: !Equals [!Ref EnableAccessDeniedAlarm, 'true']
+  CreateGetCallerIdentityAlarm: !Equals [!Ref EnableGetCallerIdentityAlarm, 'true']
+  CreateAttachUserPolicyAlarm: !Equals [!Ref EnableAttachUserPolicyAlarm, 'true']
+  CreateAuthenticateAlarm: !Equals [!Ref EnableAuthenticateAlarm, 'true']
+  CreateCreateUserAlarm: !Equals [!Ref EnableCreateUserAlarm, 'true']
+  CreateDeleteUserAlarm: !Equals [!Ref EnableDeleteUserAlarm, 'true']
+  CreateIAMUserActivityAlarm: !Equals [!Ref EnableIAMUserActivityAlarm, 'true']
 
 Resources:
   CloudWatchAlarmsStack:
@@ -18,6 +71,14 @@ Resources:
       Parameters:
         LogGroupName: !Ref LogGroupName
         ForwardingLambdaArn: !GetAtt ForwardingLambdaStack.Outputs.ForwardingLambdaArn
+        EnableAccessDeniedAlarm: !Ref EnableAccessDeniedAlarm
+        EnableGetCallerIdentityAlarm: !Ref EnableGetCallerIdentityAlarm
+        EnableAttachUserPolicyAlarm: !Ref EnableAttachUserPolicyAlarm
+        EnableAuthenticateAlarm: !Ref EnableAuthenticateAlarm
+        EnableCreateUserAlarm: !Ref EnableCreateUserAlarm
+        EnableDeleteUserAlarm: !Ref EnableDeleteUserAlarm
+        EnableIAMUserActivityAlarm: !Ref EnableIAMUserActivityAlarm
+
 
   ForwardingLambdaStack:
     Type: AWS::CloudFormation::Stack
